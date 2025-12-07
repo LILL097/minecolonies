@@ -1,0 +1,81 @@
+// =========================================================================
+// 1. PLUGINS
+// =========================================================================
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    
+    // Il nuovo plugin unificato di NeoForge (versione dal MDK)
+    id 'net.neoforged.moddev' version '2.0.121' 
+    id 'idea'
+}
+
+group = 'com.lill097.minecolonies'
+version = '0.0.1' 
+java.toolchain.languageVersion = JavaLanguageVersion.of(21) // Java 21 per MC 1.21
+
+// =========================================================================
+// 2. REPOSITORIES
+// =========================================================================
+repositories {
+    maven {
+        url "https://maven.neoforged.net/releases/"
+        name "NeoForged"
+    }
+    maven {
+        url "https://www.cursemaven.com" // Necessario per KubeJS e MineColonies
+        name "CurseMaven"
+    }
+}
+
+// =========================================================================
+// 3. CONFIGURAZIONE NEOFORGED (Versione Corretta)
+// =========================================================================
+moddev { // <--- DEVE ESSERE 'moddev', non 'neoforged'
+    // Definizioni di Minecraft e Mapping:
+    version = '1.21.1' 
+    mappings = 'official' 
+}
+
+
+// =========================================================================
+// 4. DIPENDENZE
+// =========================================================================
+dependencies {
+    // Dipendenza base di NeoForge (sintassi moderna)
+    implementation "net.neoforged:neoforge:1.21.1-209" 
+
+    // Dipendenza di KubeJS (Versione Assunta per MC 1.21)
+    def kubejs_version = "2101.5.0-build.31" 
+
+    // Necessario per compilare contro le API KubeJS
+    compileOnly "dev.latvian.mods:kubejs-neoforge:${kubejs_version}" 
+    
+    // Necessario affinché la tua mod sia caricata se KubeJS è presente
+    runtimeOnly "dev.latvian.mods:kubejs-neoforge:${kubejs_version}" 
+
+    // Dipendenza da MineColonies (utile per le classi Java)
+    // compileOnly "com.minecolonies:minecolonies:..."
+}
+
+// =========================================================================
+// 5. TASK DI COMPILAZIONE (standard MDK)
+// =========================================================================
+jar {
+    manifest {
+        attributes([
+            "Specification-Title": project.name,
+            "Specification-Vendor": "Your Name Here",
+            "Specification-Version": "1",
+            "Implementation-Title": project.name,
+            "Implementation-Version": project.version,
+            "Implementation-Vendor": "Your Name Here",
+            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+// Assicurati che il file JAR sia costruito correttamente con tutte le risorse
+tasks.named("jar", Jar).configure {
+    from(project.sourceSets.main.output)
+}
