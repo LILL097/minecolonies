@@ -1,0 +1,24 @@
+modLoader="neoforge"
+loaderVersion="[1,)" 
+# ... (altri campi standard)
+
+[[mods]]
+modId="kubejs-minecolonies"
+version="${file.jar.version}"
+displayName="KubeJS Minecolonies"
+# ...
+
+# Sezione Dipendenze
+[[dependencies.kubejs-minecolonies]]
+modId="neoforge"
+mandatory=true
+versionRange="[47.0.0,)" # Versione di NeoForge
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.kubejs-minecolonies]]
+modId="kubejs"
+mandatory=true # La tua mod richiede KubeJS per funzionare
+versionRange="[2001.0.0,)" # Versione minima di KubeJS
+ordering="AFTER" # Assicurati che KubeJS sia caricato prima del tuo addon
+side="BOTH"

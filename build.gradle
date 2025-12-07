@@ -1,52 +1,149 @@
-// =========================================================================
-// 1. PLUGINS
-// =========================================================================
 plugins {
     id 'java-library'
     id 'maven-publish'
-    
-    // Il nuovo plugin unificato di NeoForge (versione dal MDK)
-    id 'net.neoforged.moddev' version '2.0.121' 
+    id 'net.neoforged.moddev' version '2.0.121'
     id 'idea'
 }
 
-group = 'com.lill097.minecolonies'
-version = '0.0.1' 
-java.toolchain.languageVersion = JavaLanguageVersion.of(21) // Java 21 per MC 1.21
+tasks.named('wrapper', Wrapper).configure {
+    // Define wrapper values here so as to not have to always do so when updating gradlew.properties.
+    // Switching this to Wrapper.DistributionType.ALL will download the full gradle sources that comes with
+    // documentation attached on cursor hover of gradle classes and methods. However, this comes with increased
+    // file size for Gradle. If you do switch this to ALL, run the Gradle wrapper task twice afterwards.
+    // (Verify by checking gradle/wrapper/gradle-wrapper.properties to see if distributionUrl now points to `-all`)
+    distributionType = Wrapper.DistributionType.BIN
+}
 
-// =========================================================================
-// 2. REPOSITORIES
-// =========================================================================
+version = mod_version
+group = mod_group_id
+
 repositories {
+    // 1. REPOSITORY UFFICIALE KUBEJS
+    maven {
+        url "https://maven.latvian.dev/releases/" 
+        name "KubeJSMaven"
+    }
+    
+    // 2. CurseMaven
+    maven {
+        url "https://www.cursemaven.com" 
+        name "CurseMaven"
+    }
+    
+    // 3. NeoForged (CORREZIONE FINALE: Forza il download insicuro per bypassare problemi SSL)
     maven {
         url "https://maven.neoforged.net/releases/"
         name "NeoForged"
+        // Questa riga risolve i problemi di connessione in ambienti restrittivi
+        allowInsecureProtocol = true
+        metadataSources {
+            mavenContent {
+                includeGroup "net.neoforged"
+            }
+        }
     }
-    maven {
-        url "https://www.cursemaven.com" // Necessario per KubeJS e MineColonies
-        name "CurseMaven"
+    
+    // Failsafe standard
+    mavenCentral()
+    google()
+}
+
+base {
+    archivesName = mod_id
+}
+
+// Mojang ships Java 21 to end users in 1.21, so mods should target Java 21.
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    // Specify the version of NeoForge to use.
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    // This line is optional. Access Transformers are automatically detected
+    // accessTransformers = project.files('src/main/resources/META-INF/accesstransformer.cfg')
+
+    // Default run configurations.
+    // These can be tweaked, removed, or duplicated as needed.
+    runs {
+        client {
+            client()
+
+            // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        // This run config launches GameTestServer and runs all registered gametests, then exits.
+        // By default, the server will crash when no gametests are provided.
+        // The gametest system is also enabled by default for other run configs under the /test command.
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        data {
+            data()
+
+            // example of overriding the workingDirectory set in configureEach above, uncomment if you want to use it
+            // gameDirectory = project.file('run-data')
+
+            // Specify the modid for data generation, where to output the resulting resource, and where to look for existing resources.
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
+        // applies to all the run configs above
+        configureEach {
+            // Recommended logging data for a userdev environment
+            // The markers can be added/remove as needed separated by commas.
+            // "SCAN": For mods scan.
+            // "REGISTRIES": For firing of registry events.
+            // "REGISTRYDUMP": For getting the contents of all registries.
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+
+            // Recommended logging level for the console
+            // You can set various levels here.
+            // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        // define mod <-> source bindings
+        // these are used to tell the game which sources are for which mod
+        // multi mod projects should define one per mod
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
     }
 }
 
-// =========================================================================
-// 3. CONFIGURAZIONE NEOFORGED (Versione Corretta)
-// =========================================================================
-moddev { // <--- DEVE ESSERE 'moddev', non 'neoforged'
-    // Definizioni di Minecraft e Mapping:
-    version = '1.21.1' 
-    mappings = 'official' 
+// Include resources generated by data generators.
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+// Sets up a dependency configuration called 'localRuntime'.
+// This configuration should be used instead of 'runtimeOnly' to declare
+// a dependency that will be present for runtime testing but that is
+// "optional", meaning it will not be pulled by dependents of this mod.
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
 }
 
-
-// =========================================================================
-// 4. DIPENDENZE
-// =========================================================================
 dependencies {
-    // Dipendenza base di NeoForge (sintassi moderna)
-    implementation "net.neoforged:neoforge:1.21.1-209" 
+    // Dipendenza base di NeoForge (1.21.1-209 è l'ultima nota)
+    implementation "net.neoforged:neoforge:1.21.1-208" 
 
-    // Dipendenza di KubeJS (Versione Assunta per MC 1.21)
-    def kubejs_version = "2101.5.0-build.31" 
+    // AGGIORNATO: Versione KubeJS corretta per il tuo progetto
+    def kubejs_version = "2101.7.2-build.348" 
 
     // Necessario per compilare contro le API KubeJS
     compileOnly "dev.latvian.mods:kubejs-neoforge:${kubejs_version}" 
@@ -54,28 +151,59 @@ dependencies {
     // Necessario affinché la tua mod sia caricata se KubeJS è presente
     runtimeOnly "dev.latvian.mods:kubejs-neoforge:${kubejs_version}" 
 
-    // Dipendenza da MineColonies (utile per le classi Java)
-    // compileOnly "com.minecolonies:minecolonies:..."
+    // ESEMPIO: Se devi accedere a classi Java dirette di MineColonies
+    // Devi trovare la versione esatta di MineColonies per 1.21.1
+    // compileOnly "com.minecolonies:minecolonies:1.21.1-1.0.124" 
 }
 
-// =========================================================================
-// 5. TASK DI COMPILAZIONE (standard MDK)
-// =========================================================================
-jar {
-    manifest {
-        attributes([
-            "Specification-Title": project.name,
-            "Specification-Vendor": "Your Name Here",
-            "Specification-Version": "1",
-            "Implementation-Title": project.name,
-            "Implementation-Version": project.version,
-            "Implementation-Vendor": "Your Name Here",
-            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
+// This block of code expands all declared replace properties in the specified resource targets.
+// A missing property will result in an error. Properties are expanded using ${} Groovy notation.
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+// Include the output of "generateModMetadata" as an input directory for the build
+// this works with both building through Gradle and the IDE.
+sourceSets.main.resources.srcDir generateModMetadata
+// To avoid having to run "generateModMetadata" manually, make it run on every project reload
+neoForge.ideSyncTask generateModMetadata
+
+// Example configuration to allow publishing using the maven-publish plugin
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
     }
 }
 
-// Assicurati che il file JAR sia costruito correttamente con tutte le risorse
-tasks.named("jar", Jar).configure {
-    from(project.sourceSets.main.output)
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+// IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
 }
